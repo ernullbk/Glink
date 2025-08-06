@@ -19,12 +19,12 @@ jobs:
       with:
         node-version: '18'
 
-    # مرحله 3: نصب Java (JDK) برای بیلد اندروید
+        # مرحله 3: نصب Java (JDK) برای بیلد اندروید
     - name: Setup Java
       uses: actions/setup-java@v3
       with:
         distribution: 'temurin'
-        java-version: '11'
+        java-version: '17'
 
     # مرحله 4: نصب ابزار خط فرمان کوردوا
     - name: Install Cordova CLI
