@@ -1,8 +1,8 @@
 {
   "name": "ir.hrlink.app",
   "displayName": "HRLink",
-  "version": "1.0.0",
-  "description": "A sample Apache Cordova application that responds to the deviceready event.",
+  "version": "5.0.0",
+  "description": "Snappfood Token Handler",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -10,7 +10,7 @@
   "keywords": [
     "ecosystem:cordova"
   ],
-  "author": "Apache Cordova Team",
+  "author": "HRDev",
   "license": "Apache-2.0",
   "cordova": {
     "platforms": [
