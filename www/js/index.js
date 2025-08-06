@@ -41,9 +41,7 @@ function onDeviceReady() {
 
             updateStatus('اطلاعات دریافت شد، در حال تنظیم کوکی‌ها...');
             
-            // ================== بخش اصلاح شده ==================
-
-            // تابع کمکی جدید که setCookie را به یک Promise تبدیل می‌کند
+            // تابع کمکی که setCookie را به یک Promise تبدیل می‌کند
             function setCookieAsync(name, value) {
                 return new Promise((resolve, reject) => {
                     const cookieString = `${name}=${value}; path=/;`;
@@ -52,7 +50,7 @@ function onDeviceReady() {
                 });
             }
 
-            // استفاده از تابع کمکی جدید برای تنظیم تمام کوکی‌ها
+            // استفاده از تابع کمکی برای تنظیم تمام کوکی‌ها
             await Promise.all([
                 setCookieAsync('jwt-access_token', jwtData.access_token),
                 setCookieAsync('jwt-token_type', jwtData.token_type),
@@ -61,21 +59,20 @@ function onDeviceReady() {
                 setCookieAsync('UserMembership', '0')
             ]);
             
-            // ====================================================
-
             updateStatus('انجام شد! در حال انتقال به اسنپ‌فود...');
             
             window.location.href = targetUrl;
 
         } catch (error) {
             console.error(JSON.stringify(error));
-            let errorMessage = 'یک خطای ناشناخته رخ داد.';
+            let detailedErrorMessage = 'خطای ناشناخته. لطفا دوباره تلاش کنید.';
+
             if (error && error.status) {
-                errorMessage = `خطا در اتصال به سرور (کد: ${error.status}). لینک ممکن است نامعتبر باشد.`;
+                detailedErrorMessage = `خطا در اتصال به سرور (کد: ${error.status}). لینک ممکن است نامعتبر باشد.`;
             } else if (error && error.message) {
-                errorMessage = `خطا در پردازش: ${error.message}`;
+                detailedErrorMessage = `خطا در پردازش: ${error.message}`;
             }
-            updateStatus(errorMessage, true);
+            updateStatus(detailedErrorMessage, true);
             setButtonState(false);
         }
     }
