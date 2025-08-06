@@ -1,68 +1,75 @@
 document.addEventListener('deviceready', onDeviceReady, false);
 
 function onDeviceReady() {
-    console.log('Running cordova-' + cordova.platformId + '@' + cordova.version);
-    document.getElementById('deviceready').classList.add('ready');
-
-    const fetchBtn = document.getElementById('fetchBtn');
+    const processBtn = document.getElementById('processBtn');
     const apiUrlInput = document.getElementById('apiUrl');
     const statusDiv = document.getElementById('status');
     const targetUrl = 'https://m.snappfood.ir/';
 
-    fetchBtn.addEventListener('click', () => {
+    processBtn.addEventListener('click', () => {
         const apiUrl = apiUrlInput.value.trim();
         if (!apiUrl) {
-            updateStatus('لطفا لینک را وارد کنید', true);
+            updateStatus('لطفا لینک را وارد کنید.', true);
             return;
         }
-        processUrl(apiUrl);
+        processLink(apiUrl);
     });
 
     function updateStatus(message, isError = false) {
         statusDiv.innerText = message;
-        statusDiv.style.color = isError ? '#ff4444' : '#00c851';
+        statusDiv.style.color = isError ? '#e74c3c' : '#2ecc71';
     }
 
-    function setButtonState(isLoading, message) {
-        fetchBtn.disabled = isLoading;
-        fetchBtn.innerText = message;
-        if (isLoading) {
-            fetchBtn.classList.add('loading');
-        } else {
-            fetchBtn.classList.remove('loading');
-        }
+    function setButtonState(isLoading) {
+        processBtn.disabled = isLoading;
+        processBtn.innerText = isLoading ? 'در حال پردازش...' : 'ارسال';
     }
-    
-    // تابع اصلی
-    async function processUrl(apiUrl) {
-        setButtonState(true, 'در حال دریافت توکن...');
-        updateStatus('درحال پردازش لینک...');
+
+    async function processLink(apiUrl) {
+        setButtonState(true);
+        updateStatus('در حال دریافت اطلاعات از لینک...');
 
         try {
-            // 1. دریافت JSON از لینک با استفاده از پلاگین HTTP
+            // مرحله 1: دریافت پاسخ از لینک
             const response = await cordova.plugin.http.sendRequest(apiUrl, { method: 'get' });
+            
+            // مرحله 2: پارس کردن JSON اولیه
             const data = JSON.parse(response.data);
-            const jwtString = data.JWT;
-            const jwtData = JSON.parse(jwtString);
+            if (!data.JWT || typeof data.JWT !== 'string') {
+                throw new Error('فرمت پاسخ اولیه نامعتبر است یا کلید JWT وجود ندارد.');
+            }
             
-            updateStatus('توکن دریافت شد. در حال تنظیم کوکی‌ها...');
+            // مرحله 3: پارس کردن JSON داخلی که در مقدار JWT قرار دارد
+            const jwtData = JSON.parse(data.JWT);
 
-            // 2. تنظیم کوکی‌ها به صورت نیتیو
-            cordova.plugin.http.setCookie(targetUrl, `jwt-access_token=${jwtData.access_token}; path=/;`);
-            cordova.plugin.http.setCookie(targetUrl, `jwt-token_type=${jwtData.token_type}; path=/;`);
-            cordova.plugin.http.setCookie(targetUrl, `jwt-refresh_token=${jwtData.refresh_token}; path=/;`);
-            cordova.plugin.http.setCookie(targetUrl, `jwt-expires_in=${jwtData.expires_in}; path=/;`);
-            cordova.plugin.http.setCookie(targetUrl, 'UserMembership=0; path=/;');
+            updateStatus('اطلاعات دریافت شد، در حال تنظیم کوکی‌ها...');
 
-            updateStatus('کوکی‌ها تنظیم شد. در حال باز کردن سایت...');
+            [cite_start]// مرحله 4: تنظیم تمام 5 کوکی لازم، دقیقا مانند background.js [cite: 42-47]
+            const cookiePromises = [
+                cordova.plugin.http.setCookie(targetUrl, `jwt-access_token=${jwtData.access_token}; path=/;`),
+                cordova.plugin.http.setCookie(targetUrl, `jwt-token_type=${jwtData.token_type}; path=/;`),
+                cordova.plugin.http.setCookie(targetUrl, `jwt-refresh_token=${jwtData.refresh_token}; path=/;`),
+                cordova.plugin.http.setCookie(targetUrl, `jwt-expires_in=${jwtData.expires_in}; path=/;`),
+                cordova.plugin.http.setCookie(targetUrl, 'UserMembership=0; path=/;')
+            ];
+
+            await Promise.all(cookiePromises);
+
+            updateStatus('انجام شد! در حال انتقال به اسنپ‌فود...');
             
-            // 3. هدایت کاربر به سایت اسنپ‌فود
+            // مرحله 5: هدایت کاربر به سایت اسنپ‌فود
             window.location.href = targetUrl;
 
         } catch (error) {
             console.error(JSON.stringify(error));
-            updateStatus('خطا در پردازش لینک یا تنظیم کوکی. لطفا دوباره تلاش کنید.', true);
-            setButtonState(false, 'ارسال');
+            let errorMessage = 'یک خطای ناشناخته رخ داد.';
+            if (error.status) {
+                errorMessage = `خطا در اتصال به سرور (کد: ${error.status}). لینک ممکن است نامعتبر باشد.`;
+            } else if (error.message) {
+                errorMessage = `خطا در پردازش: ${error.message}`;
+            }
+            updateStatus(errorMessage, true);
+            setButtonState(false);
         }
     }
 }
