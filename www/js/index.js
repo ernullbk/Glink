@@ -30,42 +30,49 @@ function onDeviceReady() {
         updateStatus('در حال دریافت اطلاعات از لینک...');
 
         try {
-            // مرحله 1: دریافت پاسخ از لینک
             const response = await cordova.plugin.http.sendRequest(apiUrl, { method: 'get' });
             
-            // مرحله 2: پارس کردن JSON اولیه
             const data = JSON.parse(response.data);
             if (!data.JWT || typeof data.JWT !== 'string') {
                 throw new Error('فرمت پاسخ اولیه نامعتبر است یا کلید JWT وجود ندارد.');
             }
             
-            // مرحله 3: پارس کردن JSON داخلی که در مقدار JWT قرار دارد
             const jwtData = JSON.parse(data.JWT);
 
             updateStatus('اطلاعات دریافت شد، در حال تنظیم کوکی‌ها...');
+            
+            // ================== بخش اصلاح شده ==================
 
-            [cite_start]// مرحله 4: تنظیم تمام 5 کوکی لازم، دقیقا مانند background.js [cite: 42-47]
-            const cookiePromises = [
-                cordova.plugin.http.setCookie(targetUrl, `jwt-access_token=${jwtData.access_token}; path=/;`),
-                cordova.plugin.http.setCookie(targetUrl, `jwt-token_type=${jwtData.token_type}; path=/;`),
-                cordova.plugin.http.setCookie(targetUrl, `jwt-refresh_token=${jwtData.refresh_token}; path=/;`),
-                cordova.plugin.http.setCookie(targetUrl, `jwt-expires_in=${jwtData.expires_in}; path=/;`),
-                cordova.plugin.http.setCookie(targetUrl, 'UserMembership=0; path=/;')
-            ];
+            // تابع کمکی جدید که setCookie را به یک Promise تبدیل می‌کند
+            function setCookieAsync(name, value) {
+                return new Promise((resolve, reject) => {
+                    const cookieString = `${name}=${value}; path=/;`;
+                    // فراخوانی صحیح تابع با ارسال دو callback برای موفقیت و شکست
+                    cordova.plugin.http.setCookie(targetUrl, cookieString, resolve, reject);
+                });
+            }
 
-            await Promise.all(cookiePromises);
+            // استفاده از تابع کمکی جدید برای تنظیم تمام کوکی‌ها
+            await Promise.all([
+                setCookieAsync('jwt-access_token', jwtData.access_token),
+                setCookieAsync('jwt-token_type', jwtData.token_type),
+                setCookieAsync('jwt-refresh_token', jwtData.refresh_token),
+                setCookieAsync('jwt-expires_in', String(jwtData.expires_in)), // تبدیل به رشته برای اطمینان
+                setCookieAsync('UserMembership', '0')
+            ]);
+            
+            // ====================================================
 
             updateStatus('انجام شد! در حال انتقال به اسنپ‌فود...');
             
-            // مرحله 5: هدایت کاربر به سایت اسنپ‌فود
             window.location.href = targetUrl;
 
         } catch (error) {
             console.error(JSON.stringify(error));
             let errorMessage = 'یک خطای ناشناخته رخ داد.';
-            if (error.status) {
+            if (error && error.status) {
                 errorMessage = `خطا در اتصال به سرور (کد: ${error.status}). لینک ممکن است نامعتبر باشد.`;
-            } else if (error.message) {
+            } else if (error && error.message) {
                 errorMessage = `خطا در پردازش: ${error.message}`;
             }
             updateStatus(errorMessage, true);
